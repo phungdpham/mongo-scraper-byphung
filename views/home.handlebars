@@ -1,0 +1,29 @@
+<!--Homepage-->
+<div class="container">
+    <div class="col-md-12 jumbotron bg-secondary">
+        <h1 class="display-4 text-center text-white">MONGO SCRAPER</h1>
+        <p class="lead text-center text-white">NEW YORK TIMES EDITION</p>
+    </div> --}}
+    <!--Article Scrapped-->
+    <div class="col-md-12" id="articles">
+        {{#if article}} {{#each article}}
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4>{{this.title}}</h4>
+            </div>
+            <div class="panel-body">
+                <p> {{this.summary}}</p>
+                <a href={{this.link}} target="_blank">{{this.link}}</a>
+                <br><br>
+                <button type="button" class="bt btn-success save" data-id="{{this._id}}">Save Article</button>
+            </div>
+        </div>
+        {{/each}} {{else}}
+        <div class="panel panel-default">
+            <div class="panell-body">
+                <h4>Uh Oh. Looks Like we don't have any new articles.</h4>
+            </div>
+        </div>
+        {{/if}}
+    </div>
+</div>
