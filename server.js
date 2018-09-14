@@ -8,7 +8,6 @@ var path = require("path");
 //Scraping tools
 var axios = require("axios");
 var cheerio = require("cheerio");
-var request = require("request");
 
 //Requiring all models
 var db = require("./models");
@@ -30,7 +29,7 @@ app.set("view engine", "handlebars");
 //Use morgan logger for logging requests
 app.use(logger("dev"));
 //Use body-parser for handling form submisision
-app.use(bodyParser.urlencoded({ extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 //Use express.static to server the public folder as a static directory
 app.use(express.static("public"));
 
@@ -52,92 +51,153 @@ mongoose.connect(MONGO_URI);
 //Routes
 
 //Get rquest to render Handlebars pages
-app.get("/", function(req, res) {
-    Article.find({"saved": false}, function (err, data) {
+app.get("/", function (req, res) {
+    db.Article.find({ "saved": false }, function (err, data) {
         var hbsObject = {
             article: data
         };
         console.log(hbsObject);
         res.render("home", hbsObject);
     })
-})
+});
 
 //A Get route for scraping New  York Times website
-app.get("/scrape", function(req, res) {
+app.get("/scrape", function (req, res) {
     //First, grabing the body of the html with request
-    axios.get("https://www.nytimes.com/").then(function(response) {
+    axios.get("https://www.nytimes.com/").then(function (response) {
         //Then, loading that into cherio and save it to $ for a shorthand selector
         var $ = cheerio.load(response.data);
         //Now, grabing every h2  for the headline
-        $("span.balanceHeadline").each(function(i, element) {
+        $(".article").each(function (i, element) {
             //save an empty result object
             var result = {};
             //add the text and href of every link, and save them
-            result.title= $(this)
+            result.title = $(this)
+                .children("h2")
                 .text();
             result.summary = $(this)
-                .parent().parent().next("ul")
+                .children(".summary")
                 .text();
             result.link = $(this)
-                .parent().parent().parent()
+                .children("h2").children("a")
                 .attr("href");
             //Creating a new Article using the result object built from scraping
-            db.Article.create(result)
-                .then(function(dbArticle) {
-                    //view the added result in the console
-                    console.log(dbArticle);
-                })
-                .catch(function(err) {
-                    return res.json(err);
-                });
+            entry.save(function (err, doc) {
+                if (err) {
+                    console.log(err);
+                }
+                //Or log doc
+                else {
+                    console.log(doc);
+                }
+            });
+            //     db.Article.create(result)
+            //         .then(function(dbArticle) {
+            //             //view the added result in the console
+            //             console.log(dbArticle);
+            //         })
+            //         .catch(function(err) {
+            //             return res.json(err);
+            //         });
+            // });
+            // console.log(result);
+
+            // //Sending a message to client after sucesfully scraping and saving an Article
+            res.send("Scrape Complete");
         });
-        console.log(result);
-
-        //Sending a message to client after sucesfully scraping and saving an Article
-        res.send("Scrape Complete");
-    })
-});
-
-//Route for getting all articles from the db
-app.get("/articles", function(req, res) {
-    //Grab every document in the Article collection
-    db.Article.find({})
-        .then(function(dbArticle) {
-            res.json(dbArticle);
-        })
-        .catch(function(err) {
-            res.json(err);
-        });
-});
-
-//Route for grabbing a specific Article By id, populate it with its notes
-app.get("/articles/:id", function(req,res) {
-    db.Article.findOne({ _id: req.params.id })
-    .populate("note")
-    .then(function(dbArticle) {
-        res.json(dbArticle);
-    })
-    .catch(function(err) {
-        res.json(err);
     });
 });
 
-//Route for saving/updating an Article's associated Note
-app.post("/articles/:id", function(req, res) {
-    db.Note.create(req.body)
-        .body(function(dbNote) {
-            return db.Article.findOneAndUpdate({ _id: req.params.id}, { note: dbNote.id }, { new: true });
-        })
-        .then(function(dbArticle) {
-            res.json(dbArticle);
-        })
-        .catch(function(err) {
-            res.json(err);
-        })
-});
+    //Route for getting all articles from the db
+    app.get("/articles", function (req, res) {
+        //Grab every document in the Article collection
+        db.Article.find({})
+            .then(function (dbArticle) {
+                res.json(dbArticle);
+            })
+            .catch(function (err) {
+                res.json(err);
+            });
+    });
 
-//Start the server
-app.listen(PORT, function() {
-    console.log("App running on port " + PORT + "!");
-});
+    //Route for deleting an article
+    app.post("/articles/delete/:id", function (req, res) {
+        db.Article.findOneAndUpdate({ _id: req.params.id }, { "saved": false, "notes": [] })
+            .then(function (dbArticle) {
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    res.send(dbArticle);
+                }
+            })
+    });
+
+    //Route for grabbing a specific Article By id, populate it with its notes
+    app.get("/articles/:id", function (req, res) {
+        db.Article.findOne({ _id: req.params.id })
+            .populate("note")
+            .then(function (dbArticle) {
+                res.json(dbArticle);
+            })
+            .catch(function (err) {
+                res.json(err);
+            });
+    });
+
+    //route for saving an article
+    app.post("/articles/save/:id", function (req, res) {
+        db.Article.findOneAndUpdate({ _id: req.params.id }, { "saved": true })
+            .then(function (err, dbArticle) {
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    res.send(dbArticle);
+                }
+            });
+    });
+
+    //Route for saving/updating an Article's associated Note
+    app.post("/notes/save/:id", function (req, res) {
+        // var newNote = new Note({
+        //     body: req.body.text,
+        //     article: req.params.id
+        // });
+        // console.log(req.body);
+        //Saving new note to the db
+        db.Note.create(req.body)
+            .body(function (dbNote) {
+                return db.Article.findOneAndUpdate({ _id: req.params.id }, { note: dbNote.id }, { new: true });
+            })
+            .then(function (dbArticle) {
+                res.json(dbArticle);
+            })
+            .catch(function (err) {
+                res.json(err);
+            })
+    });
+
+    //Routes for deleting a note
+    app.delete("/notes/delete/:note_id/:article_id", function (req, res) {
+        db.Note.findOneAndRemove({ "_id": req.params.note_id }, function (err) {
+            if (err) {
+                console.log(err);
+                res.send(err);
+            }
+            else {
+                db.Article.findOneAndUpdate({ "_id": req.params.article_id }, { $pull: { "notes": req.params.note_id } })
+                    .then(function (dbNote) {
+                        res.json(dbNote)
+                    })
+                    .catch(function (err) {
+                        res.json(err);
+                    })
+            }
+        });
+    });
+    //Start the server
+    app.listen(PORT, function() {
+        console.log("App running on port " + PORT + "!")
+    });
 

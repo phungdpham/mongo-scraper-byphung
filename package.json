@@ -2,7 +2,7 @@
   "name": "scapring-news-with-mongoose",
   "version": "1.0.0",
   "description": "Practice with mongoose",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "yes"
   },
